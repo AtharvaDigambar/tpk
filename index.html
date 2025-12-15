@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TPK Admin Portal</title>
+    <link rel="icon" href="logo2.png" type="image/x-icon" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF Libs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    screens: {
+                        'xs': '375px',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .toast-enter { animation: slideIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Header Nav Active State (Desktop) */
+        .nav-item.active { background-color: rgba(255,255,255,0.15); color: white; }
+        
+        /* Mobile Bottom Nav Active State */
+        .mobile-nav-item.active { color: #1d4ed8; background-color: #eff6ff; }
+
+        /* Popup Animation */
+        .popup-scale { animation: popupScale 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popupScale { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Mobile View Transitions */
+        .slide-left { animation: slideLeft 0.2s ease-out forwards; }
+        @keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    </style>
+</head>
+<!-- Use 100dvh for dynamic viewport height on mobile browsers -->
+<body class="bg-slate-100 font-sans text-slate-900 h-[100dvh] overflow-hidden flex flex-col">
+
+    <!-- Notification Container (Toasts) -->
+    <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto md:w-auto z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- PRODUCT FORM MODAL -->
+    <div id="product-form-modal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm popup-scale overflow-hidden ring-1 ring-white/20">
+            <div class="bg-blue-700 p-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-lg" id="modal-title">Add Bakery Item</h3>
+                <button onclick="closeProductModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="product-form" class="p-6 space-y-6">
+                <input type="hidden" id="prod-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Item Name</label>
+                    <input type="text" id="prod-name" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-slate-50" placeholder="e.g. Sourdough Loaf">
+                </div>
+                
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="closeProductModal()" class="flex-1 py-3 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 text-sm">Cancel</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-md text-sm">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PRODUCT SCHEDULE MODAL -->
+    <div id="product-schedule-modal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md popup-scale overflow-hidden ring-1 ring-white/20 flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="bg-slate-800 p-4 flex justify-between items-center text-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i class="fa-solid fa-calendar-days text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base leading-tight">Baking Schedule</h3>
+                        <p class="text-slate-400 text-xs" id="schedule-product-name">Product Name</p>
+                    </div>
+                </div>
+                <button onclick="closeSchedulePopup()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto bg-slate-50 p-0">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-500 text-xs uppercase sticky top-0 border-b border-slate-200 shadow-sm z-10">
+                        <tr>
+                            <th class="p-3 pl-5 font-semibold">Delivery Date</th>
+                            <th class="p-3 font-semibold">Partner</th>
+                            <th class="p-3 pr-5 text-right font-semibold">Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-list" class="divide-y divide-slate-100 bg-white">
+                        <!-- Dates injected here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-3 bg-white border-t border-slate-100 text-center shrink-0">
+                <button onclick="closeSchedulePopup()" class="text-sm text-slate-500 hover:text-slate-800 font-medium py-2 px-4 w-full">Close View</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PARTNER HISTORY MODAL -->
+    <div id="partner-history-modal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl popup-scale overflow-hidden ring-1 ring-white/20 flex flex-col max-h-[90vh]">
+            <div class="bg-slate-800 p-4 flex justify-between items-center text-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base leading-tight">Order History</h3>
+                        <p class="text-slate-400 text-xs" id="history-partner-name">Partner Name</p>
+                    </div>
+                </div>
+                <button onclick="closeHistoryModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-auto bg-slate-50 p-0">
+                <div class="min-w-[600px] md:min-w-0"> <!-- Horizontal scroll wrapper -->
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-500 text-xs uppercase sticky top-0 border-b border-slate-200 z-10">
+                            <tr>
+                                <th class="p-4 pl-6 font-semibold">Ordered</th>
+                                <th class="p-4 font-semibold">Delivery</th>
+                                <th class="p-4 font-semibold">Status</th>
+                                <th class="p-4 font-semibold">Items Summary</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-list" class="divide-y divide-slate-100 bg-white">
+                            <!-- History injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="p-3 bg-white border-t border-slate-100 text-center shrink-0">
+                <button onclick="closeHistoryModal()" class="text-sm text-slate-500 hover:text-slate-800 font-medium py-2 px-4 w-full">Close History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW ORDER POPUP MODAL -->
+    <div id="new-order-modal" class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg popup-scale overflow-hidden ring-1 ring-white/20 relative flex flex-col max-h-[90vh]">
+            
+            <!-- Queue Badge Indicator -->
+            <div id="queue-badge" class="hidden absolute top-4 right-14 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10 animate-pulse">
+                +<span id="queue-count">0</span> more
+            </div>
+
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex justify-between items-center text-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2.5 rounded-xl animate-bounce">
+                        <i class="fa-solid fa-bell text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight">Fresh Order!</h3>
+                        <p class="text-blue-100 text-xs">Review Request</p>
+                    </div>
+                </div>
+                <button onclick="closePopup()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 bg-white overflow-y-auto">
+                <div class="text-center mb-6">
+                    <div class="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold mb-2 uppercase tracking-wide">Café / Restaurant</div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 break-words" id="popup-business">Acme Café</h2>
+                    <p class="text-slate-500 font-medium text-sm mt-1" id="popup-phone">
+                        <i class="fa-solid fa-phone text-slate-400 mr-1"></i> <span id="popup-phone-text">--</span>
+                    </p>
+                    <div class="flex flex-wrap items-center justify-center gap-2 md:gap-4 mt-2 text-sm">
+                        <p class="text-slate-400 flex items-center gap-1">
+                            <i class="fa-regular fa-clock"></i> <span id="popup-time">Just now</span>
+                        </p>
+                        <p class="text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            <i class="fa-solid fa-truck-fast"></i> Due: <span id="popup-delivery">...</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-0 mb-6 max-h-48 overflow-y-auto">
+                    <div class="px-4 py-2 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase flex justify-between sticky top-0">
+                        <span>Product</span>
+                        <span>Qty</span>
+                    </div>
+                    <div id="popup-items" class="divide-y divide-slate-100">
+                        <!-- Items injected here -->
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="popup-reject-btn" class="py-3.5 px-4 rounded-xl border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 text-sm md:text-base">
+                        <i class="fa-solid fa-xmark"></i> Reject
+                    </button>
+                    <button id="popup-accept-btn" class="py-3.5 px-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 text-sm md:text-base">
+                        <i class="fa-solid fa-check"></i> Accept
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH SCREEN -->
+    <div id="admin-auth" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-blue-600">
+            <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/40">
+                <img src="logo2.png" alt="Icon" width="30" height="30" class="brightness-0 invert">
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800">TPK Admin Portal</h1>
+            <p class="text-slate-400 mb-8 text-sm">We Follow Perfection In Work</p>
+            
+            <div id="auth-error-msg" class="hidden p-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs mb-4 text-left"></div>
+
+            <button id="admin-login-btn" class="w-full bg-blue-600 text-white py-3.5 rounded-xl hover:bg-blue-700 transition-all font-semibold shadow-lg shadow-blue-200 transform active:scale-95">
+                Access Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- APP LAYOUT (Hidden until login) -->
+    <div id="admin-app" class="flex flex-col w-full h-full hidden">
+        
+        <!-- HEADER (Desktop: Full Nav, Mobile: Logo + Logout) -->
+        <header class="bg-blue-700 text-white shadow-lg z-50 flex-shrink-0 relative">
+            <div class="max-w-[1920px] mx-auto px-4 h-16 flex items-center justify-between">
+                
+                <!-- Brand -->
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-blue-700 text-lg font-bold shadow-sm">
+                        <img src="logo2.png" alt="Cake" width="30" height="30">
+                    </div>
+                    <span class="font-bold text-xl tracking-wide hidden xs:inline">TPK Admin</span>
+                </div>
+
+                <!-- Desktop Main Navigation -->
+                <nav class="hidden md:flex items-center gap-1 bg-blue-800/30 p-1 rounded-lg">
+                    <button onclick="setTab('orders')" id="nav-orders" class="nav-item active flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all">
+                        <i class="fa-solid fa-clipboard-list"></i> Orders
+                    </button>
+                    <button onclick="setTab('suppliers')" id="nav-suppliers" class="nav-item flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all">
+                        <i class="fa-solid fa-users"></i> Partners
+                    </button>
+                    <button onclick="setTab('products')" id="nav-products" class="nav-item flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all">
+                        <i class="fa-solid fa-boxes-stacked"></i> Bakery Items
+                    </button>
+                    <button onclick="setTab('insights')" id="nav-insights" class="nav-item flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all">
+                        <i class="fa-solid fa-chart-pie"></i> Analytics
+                    </button>
+                </nav>
+
+                <!-- User & Actions -->
+                <div class="flex items-center gap-3 md:gap-4">
+                    <div class="text-right hidden sm:block">
+                        <div class="text-sm font-semibold text-white">Welcome</div>
+                        <div class="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Admin</div>
+                    </div>
+                    
+                    <button id="admin-logout" class="p-2 text-blue-200 hover:text-white hover:bg-blue-600 rounded-full transition-all" title="Sign Out">
+                        <i class="fa-solid fa-right-from-bracket text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <!-- Added padding-bottom for mobile nav -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 relative pb-16 md:pb-0">
+            
+            <!-- VIEW: ORDERS -->
+            <div id="view-orders" class="flex-1 flex overflow-hidden relative">
+                
+                <!-- COL 1: ORDER LIST (Full width on mobile, sidebar on desktop) -->
+                <div id="order-list-panel" class="w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg absolute inset-0 md:relative">
+                    <!-- Search Header -->
+                    <div class="p-4 border-b border-slate-100 bg-white sticky top-0 z-20 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-slate-800">Order Queue</h2>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-mono font-bold" id="order-count-badge">0</span>
+                        </div>
+                        
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                            <input type="text" id="order-search" onkeyup="filterOrders()" placeholder="Search partner or ID..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border-0 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-slate-400">
+                        </div>
+                    </div>
+                    
+                    <!-- Scrollable List -->
+                    <div id="order-list-container" class="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 md:space-y-3 bg-slate-50 pb-20 md:pb-3">
+                        <!-- Orders injected via JS -->
+                    </div>
+                </div>
+
+                <!-- COL 2: ORDER DETAILS (Hidden on mobile initially) -->
+                <div id="middle-panel" class="absolute inset-0 md:static w-full h-full bg-slate-50/50 flex flex-col z-20 md:z-auto hidden md:flex">
+                    
+                    <!-- Placeholder -->
+                    <div id="no-selection" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-basket-shopping text-6xl mb-4 opacity-20"></i>
+                        <p>Select an order to view details</p>
+                    </div>
+
+                    <!-- Detail Content -->
+                    <div id="order-detail-content" class="bg-slate-50 w-full h-full flex flex-col hidden overflow-hidden">
+                        
+                        <!-- Detail Toolbar (Mobile Back Button) -->
+                        <div class="bg-white border-b border-slate-200 p-3 md:hidden flex items-center gap-3 shrink-0 shadow-sm z-30">
+                            <button onclick="backToOrderList()" class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full text-slate-600">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <span class="font-bold text-slate-800">Order Details</span>
+                        </div>
+
+                        <!-- Scrollable Content -->
+                        <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                            <div class="max-w-5xl mx-auto w-full fade-in pb-20 md:pb-0">
+                                <!-- Header Info -->
+                                <div class="flex flex-col md:flex-row justify-between items-start mb-6 md:mb-8 gap-4">
+                                    <div class="w-full md:w-auto">
+                                        <div class="flex flex-wrap items-center gap-3 mb-2">
+                                            <h1 class="text-2xl md:text-3xl font-bold text-slate-800" id="detail-id">Order #---</h1>
+                                            <div id="detail-status-wrapper" class="flex-shrink-0">
+                                                <!-- Status Badge/Select -->
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Meta Info Grid -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-4 text-sm text-slate-600 mt-2">
+                                            <div class="flex items-center gap-2">
+                                                <i class="fa-regular fa-calendar text-slate-400 w-4"></i>
+                                                <span id="detail-date" class="font-medium">--</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <i class="fa-solid fa-store text-slate-400 w-4"></i>
+                                                <span id="detail-customer" class="font-bold text-slate-800">Partner</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <i class="fa-solid fa-phone text-slate-400 w-4"></i>
+                                                <span id="detail-phone">--</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-1 sm:mt-0 col-span-1 sm:col-span-2">
+                                                <i class="fa-solid fa-location-dot text-slate-400 w-4"></i>
+                                                <span id="detail-address" class="italic truncate"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-3 inline-flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 w-full sm:w-auto">
+                                            <i class="fa-solid fa-truck-fast text-blue-600"></i> 
+                                            <span class="text-sm text-blue-800 font-bold">Due: <span id="detail-due-date">...</span></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button onclick="triggerPackingSlip()" class="w-full md:w-auto justify-center px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm flex items-center gap-2 active:bg-slate-100">
+                                        <i class="fa-solid fa-print"></i> Print Slip
+                                    </button>
+                                </div>
+
+                                <!-- Details Card -->
+                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                                    <div class="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                                        <h3 class="font-bold text-slate-700">Order Items</h3>
+                                    </div>
+                                    
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left text-sm min-w-[300px]">
+                                            <thead class="bg-slate-50 text-slate-500 border-b border-slate-100">
+                                                <tr>
+                                                    <th class="p-3 md:p-4 pl-4 md:pl-6 font-medium">Product</th>
+                                                    <th class="p-3 md:p-4 text-center font-medium">Qty</th>
+                                                    <th class="p-3 md:p-4 text-center font-medium">Check</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="detail-items-list" class="divide-y divide-slate-50">
+                                                <!-- Items -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Totals Footer -->
+                                    <div class="p-4 md:p-5 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                        <div class="w-full md:w-48 space-y-2">
+                                            <div class="flex justify-between text-slate-500 text-sm">
+                                                <span>Total Qty</span>
+                                                <span id="detail-total-qty" class="font-medium text-slate-800">0</span>
+                                            </div>
+                                            <div class="flex justify-between text-slate-500 text-sm">
+                                                <span>Unique Items</span>
+                                                <span id="detail-unique-sku" class="font-medium text-slate-800">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SUPPLIERS -->
+            <div id="view-suppliers" class="hidden flex-1 overflow-y-auto p-4 md:p-8 fade-in pb-20 md:pb-8">
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">Partner Directory</h2>
+                        <button class="text-sm text-blue-600 font-medium hover:underline bg-blue-50 px-3 py-1 rounded">Export</button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm min-w-[600px] md:min-w-0">
+                                <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-4 font-semibold">Café / Restaurant</th>
+                                        <th class="p-4 font-semibold text-center">Total Orders</th>
+                                        <th class="p-4 font-semibold">Last Order</th>
+                                        <th class="p-4 font-semibold">Favorites</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliers-table-body" class="divide-y divide-slate-100">
+                                    <!-- Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: PRODUCTS -->
+            <div id="view-products" class="hidden flex-1 overflow-y-auto p-4 md:p-8 fade-in pb-20 md:pb-8">
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div class="flex items-center gap-4 w-full md:w-auto justify-between">
+                            <div>
+                                <h2 class="text-2xl font-bold text-slate-800">Bakery Catalog</h2>
+                                <p class="text-sm text-slate-500">Manage daily offerings</p>
+                            </div>
+                            <div class="bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
+                                <span class="text-xs md:text-sm font-bold text-slate-700">Total: <span id="total-products-count" class="text-blue-600">0</span></span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col xs:flex-row gap-3 w-full md:w-auto">
+                            <!-- Product Search -->
+                            <div class="relative w-full md:w-64">
+                                <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="product-search" onkeyup="renderProductsList()" placeholder="Search bakery items..." class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-slate-400">
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="btn-seed-products" onclick="seedDefaultProducts()" class="hidden bg-slate-200 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-300 transition-colors text-sm font-medium whitespace-nowrap">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </button>
+                                <button onclick="openProductModal()" class="flex-1 md:flex-none bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm flex items-center justify-center gap-2 whitespace-nowrap active:scale-95">
+                                    <i class="fa-solid fa-plus"></i> Add Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-4 font-semibold">Item Name</th>
+                                    <th class="p-4 font-semibold text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="4" class="p-8 text-center text-slate-400">Loading catalog...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: ANALYTICS -->
+            <div id="view-insights" class="hidden flex-1 overflow-y-auto p-4 md:p-8 fade-in pb-20 md:pb-8">
+                <div class="max-w-6xl mx-auto space-y-6">
+                    <!-- Top AI Controls -->
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <h2 class="text-2xl font-bold text-slate-800">Sales Analytics</h2>
+                        <button onclick="triggerBakeSheet()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors active:scale-95">
+                            <i class="fa-solid fa-print"></i> <span class="hidden xs:inline">Bake Sheet</span>
+                        </button>
+                    </div>
+
+                    <div id="ai-panel" class="hidden bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-6 rounded-2xl shadow-lg relative">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-bold flex items-center gap-2 text-lg">
+                                <i class="fa-solid fa-sparkles text-yellow-300"></i> Smart Summary
+                            </h3>
+                            <button onclick="document.getElementById('ai-panel').classList.add('hidden')" class="text-white/70 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="ai-text" class="prose prose-invert max-w-none text-blue-50 text-sm leading-relaxed"></div>
+                    </div>
+                    
+                    <!-- KPI Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Orders Today</p>
+                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-total">0</h3>
+                                </div>
+                                <div class="p-3 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-regular fa-file-lines text-xl"></i></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Partners</p>
+                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-clients">0</h3>
+                                </div>
+                                <div class="p-3 bg-purple-50 text-purple-600 rounded-lg"><i class="fa-regular fa-building text-xl"></i></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Pending Review</p>
+                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-pending">0</h3>
+                                </div>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-clock text-xl"></i></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Demand Table -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                        <div class="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                            <h3 class="font-bold text-slate-800">Production Demand</h3>
+                        </div>
+                        <div class="flex-1 overflow-auto max-h-[400px]">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-50 text-slate-500 sticky top-0 z-10">
+                                    <tr><th class="p-4 font-semibold">Item</th><th class="p-4 font-semibold text-right">To Bake</th></tr>
+                                </thead>
+                                <tbody id="demand-table" class="divide-y divide-slate-5"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- MOBILE BOTTOM NAVIGATION (Hidden on Desktop) -->
+        <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[60] pb-safe-area">
+            <nav class="flex justify-around items-center h-16">
+                <button onclick="setTab('orders')" id="mob-nav-orders" class="mobile-nav-item active flex-1 h-full flex flex-col items-center justify-center gap-1 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-clipboard-list text-lg"></i>
+                    <span class="text-[10px] font-medium">Orders</span>
+                </button>
+                <button onclick="setTab('suppliers')" id="mob-nav-suppliers" class="mobile-nav-item flex-1 h-full flex flex-col items-center justify-center gap-1 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-users text-lg"></i>
+                    <span class="text-[10px] font-medium">Partners</span>
+                </button>
+                <button onclick="setTab('products')" id="mob-nav-products" class="mobile-nav-item flex-1 h-full flex flex-col items-center justify-center gap-1 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-bread-slice text-lg"></i>
+                    <span class="text-[10px] font-medium">Items</span>
+                </button>
+                <button onclick="setTab('insights')" id="mob-nav-insights" class="mobile-nav-item flex-1 h-full flex flex-col items-center justify-center gap-1 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
+                    <span class="text-[10px] font-medium">Data</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- LOGIC -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+        // --- FIREBASE CONFIG (Project: btob-e4f54) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDC7Ih0GQiueuv0UCCx7ntTQ7i2CcjYn7Y",
+            authDomain: "btob-e4f54.firebaseapp.com",
+            projectId: "btob-e4f54",
+            storageBucket: "btob-e4f54.firebasestorage.app",
+            messagingSenderId: "877538189776",
+            appId: "1:877538189776:web:b1bc9a99b9829b06f399d5",
+            measurementId: "G-8R7JFN5F2F"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'btob-e4f54';
+
+        // --- STATE & AUDIO ---
+        let allOrders = [];
+        let allProducts = [];
+        let selectedOrderId = null;
+        let isFirstLoad = true;
+        let globalProductDemand = {}; 
+        let unsubscribeOrders = null;
+        
+        let popupQueue = [];
+        let isPopupOpen = false;
+        
+        // Audio System
+        const audioFiles = {
+            notification: new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'),
+            success: new Audio('https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3'),
+            error: new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3')
+        };
+
+        // Configure audio
+        Object.values(audioFiles).forEach(audio => {
+            audio.preload = 'none'; 
+            audio.onerror = () => console.warn("Audio source unavailable");
+        });
+
+        const playSound = (type) => {
+            const sound = audioFiles[type];
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Audio playback blocked/failed:", e));
+            }
+        };
+
+        // --- HELPER: FORMAT DATE ---
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr; 
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        };
+
+        const displayDate = (dateStr) => {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return dateStr;
+        };
+
+        // --- POPUP QUEUE SYSTEM ---
+        window.queueNewOrderPopup = (order, id) => {
+            popupQueue.push({ order, id });
+            
+            const badge = document.getElementById('queue-badge');
+            const count = document.getElementById('queue-count');
+            if (popupQueue.length > 1) {
+                badge.classList.remove('hidden');
+                count.innerText = popupQueue.length - 1;
+            } else {
+                badge.classList.add('hidden');
+            }
+            processPopupQueue();
+        };
+
+        function processPopupQueue() {
+            if (isPopupOpen || popupQueue.length === 0) return;
+            const nextItem = popupQueue[0];
+            renderAndShowPopup(nextItem.order, nextItem.id);
+            isPopupOpen = true;
+        }
+
+        function renderAndShowPopup(order, id) {
+            const modal = document.getElementById('new-order-modal');
+            document.getElementById('popup-business').innerText = order.businessName;
+            document.getElementById('popup-phone-text').innerText = order.phoneNumber || 'N/A';
+            document.getElementById('popup-time').innerText = formatDate(order.createdAt?.toDate ? order.createdAt.toDate() : new Date());
+            document.getElementById('popup-delivery').innerText = `${displayDate(order.deliveryDate) || 'N/A'} ${order.deliveryTime ? '@ ' + order.deliveryTime : ''}`;
+            
+            const itemsContainer = document.getElementById('popup-items');
+            if (order.items && order.items.length > 0) {
+                itemsContainer.innerHTML = order.items.map(i => `
+                    <div class="flex justify-between items-center p-3 hover:bg-slate-50 transition-colors">
+                        <span class="text-sm font-medium text-slate-700">${i.name}</span>
+                        <span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100">x${i.qty}</span>
+                    </div>
+                `).join('');
+            } else {
+                itemsContainer.innerHTML = '<div class="text-center text-slate-400 text-xs p-4">No items details</div>';
+            }
+
+            const acceptBtn = document.getElementById('popup-accept-btn');
+            const rejectBtn = document.getElementById('popup-reject-btn');
+            
+            const newAccept = acceptBtn.cloneNode(true);
+            const newReject = rejectBtn.cloneNode(true);
+            acceptBtn.parentNode.replaceChild(newAccept, acceptBtn);
+            rejectBtn.parentNode.replaceChild(newReject, rejectBtn);
+
+            newAccept.onclick = () => { updateStatus(id, 'Processing'); closePopup(); };
+            newReject.onclick = () => { updateStatus(id, 'Cancelled'); closePopup(); };
+
+            playSound('notification');
+            modal.classList.remove('hidden');
+        }
+
+        window.closePopup = () => {
+            document.getElementById('new-order-modal').classList.add('hidden');
+            isPopupOpen = false;
+            popupQueue.shift();
+            
+            const badge = document.getElementById('queue-badge');
+            const count = document.getElementById('queue-count');
+            if (popupQueue.length > 1) {
+                badge.classList.remove('hidden');
+                count.innerText = popupQueue.length - 1;
+            } else {
+                badge.classList.add('hidden');
+            }
+            setTimeout(() => { processPopupQueue(); }, 300);
+        };
+
+        // --- SCHEDULE MODAL ---
+        window.showProductSchedule = (pid) => {
+            const product = globalProductDemand[pid];
+            if(!product) return;
+
+            document.getElementById('schedule-product-name').innerText = product.name;
+            const tbody = document.getElementById('schedule-list');
+            
+            if (product.schedule.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">No scheduled deliveries</td></tr>';
+            } else {
+                tbody.innerHTML = product.schedule.map(s => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 pl-5 text-blue-600 font-medium whitespace-nowrap">${displayDate(s.date)}</td>
+                        <td class="p-3 text-slate-600">${s.business}</td>
+                        <td class="p-3 pr-5 text-right font-bold text-slate-700">${s.qty}</td>
+                    </tr>
+                `).join('');
+            }
+            document.getElementById('product-schedule-modal').classList.remove('hidden');
+        };
+
+        window.closeSchedulePopup = () => {
+            document.getElementById('product-schedule-modal').classList.add('hidden');
+        };
+
+        // --- PARTNER HISTORY ---
+        window.viewPartnerHistory = (partnerName) => {
+            const history = allOrders.filter(o => o.businessName === partnerName).sort((a,b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
+            
+            document.getElementById('history-partner-name').innerText = partnerName;
+            const tbody = document.getElementById('history-list');
+            
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">No order history found.</td></tr>';
+            } else {
+                tbody.innerHTML = history.map(o => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-4 text-slate-600 pl-6 whitespace-nowrap">${formatDate(o.createdAt?.toDate())}</td>
+                        <td class="p-4 text-slate-800 font-medium whitespace-nowrap">${displayDate(o.deliveryDate)}</td>
+                        <td class="p-4">
+                            <span class="text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wide whitespace-nowrap ${
+                                o.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 
+                                o.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
+                                o.status === 'Dispatched' ? 'bg-purple-100 text-purple-700' :
+                                o.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-green-100 text-green-700'
+                            }">${o.status}</span>
+                        </td>
+                        <td class="p-4 text-xs text-slate-500 min-w-[200px]">
+                            ${o.items ? o.items.map(i => `${i.qty}x ${i.name}`).join(', ') : 'No items'}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            document.getElementById('partner-history-modal').classList.remove('hidden');
+        };
+
+        window.closeHistoryModal = () => {
+            document.getElementById('partner-history-modal').classList.add('hidden');
+        };
+
+        // --- PRODUCT MANAGEMENT ---
+        window.renderProductsList = () => {
+            const tbody = document.getElementById('products-table-body');
+            const seedBtn = document.getElementById('btn-seed-products');
+            const searchInput = document.getElementById('product-search');
+            const searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            
+            const countEl = document.getElementById('total-products-count');
+            if (countEl) countEl.innerText = allProducts.length;
+
+            if (allProducts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">No products found. Start adding some!</td></tr>';
+                if(seedBtn) seedBtn.classList.remove('hidden');
+                return;
+            }
+            
+            if(seedBtn) seedBtn.classList.add('hidden');
+
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(searchVal));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">No matching items found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(p => `
+                <tr class="hover:bg-slate-50 border-b border-slate-50">
+                    <td class="p-4 font-medium text-slate-800">${p.name}</td>
+                    <td class="p-4 text-right space-x-2 whitespace-nowrap">
+                        <button onclick="openProductModal('${p.id}')" class="p-2 bg-blue-50 rounded-lg text-blue-500 hover:text-blue-700 transition-colors"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="p-2 bg-red-50 rounded-lg text-red-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        };
+
+        window.openProductModal = (id = null) => {
+            const modal = document.getElementById('product-form-modal');
+            const title = document.getElementById('modal-title');
+            const form = document.getElementById('product-form');
+            
+            form.reset();
+            document.getElementById('prod-id').value = '';
+
+            if(id) {
+                const product = allProducts.find(p => p.id === id);
+                if(product) {
+                    title.innerText = 'Edit Bakery Item';
+                    document.getElementById('prod-id').value = product.id;
+                    document.getElementById('prod-name').value = product.name;
+                }
+            } else {
+                title.innerText = 'Add Bakery Item';
+            }
+            modal.classList.remove('hidden');
+        };
+
+        window.closeProductModal = () => {
+            document.getElementById('product-form-modal').classList.add('hidden');
+        };
+
+        document.getElementById('product-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const data = {
+                name: document.getElementById('prod-name').value,
+            };
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            try {
+                if(id) {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id), data);
+                    showToast('Updated successfully', 'success');
+                } else {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'products'), data);
+                    showToast('Item added successfully', 'success');
+                }
+                closeProductModal();
+            } catch(err) {
+                console.error(err);
+                showToast('Failed to save', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Item';
+            }
+        });
+
+        window.deleteProduct = async (id) => {
+            if(!confirm('Delete this item from menu?')) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id));
+                showToast('Deleted', 'success');
+            } catch(err) {
+                console.error(err);
+                showToast('Failed to delete', 'error');
+            }
+        };
+
+        window.seedDefaultProducts = async () => {
+            const defaults = [
+                { name: 'Butter Croissant' },
+                { name: 'Sourdough Loaf' },
+                { name: 'Baguette' },
+                { name: 'Chocolate Muffin' },
+                { name: 'Multigrain Bread' },
+                { name: 'Bagels (Plain)' },
+                { name: 'Cinnamon Roll' },
+                { name: 'Espresso Beans' }
+            ];
+            
+            if(!confirm('Add default bakery menu to database?')) return;
+
+            const btn = document.getElementById('btn-seed-products');
+            btn.disabled = true;
+
+            try {
+                const batchPromises = defaults.map(p => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'products'), p));
+                await Promise.all(batchPromises);
+                showToast('Menu imported!', 'success');
+            } catch(e) {
+                console.error(e);
+                showToast('Import failed', 'error');
+            }
+        };
+
+        // --- ORDER LIST RENDERING ---
+        window.renderOrderList = () => {
+            const listContainer = document.getElementById('order-list-container');
+            const searchVal = document.getElementById('order-search').value.toLowerCase();
+            
+            const filtered = allOrders.filter(o => 
+                o.status !== 'Delivered' && 
+                o.status !== 'Cancelled' &&
+                ((o.businessName || '').toLowerCase().includes(searchVal) || 
+                o.id.toLowerCase().includes(searchVal))
+            ).sort((a,b) => {
+                const dateA = new Date(a.deliveryDate || '9999-12-31');
+                const dateB = new Date(b.deliveryDate || '9999-12-31');
+                return dateA - dateB;
+            });
+
+            document.getElementById('order-count-badge').innerText = filtered.length;
+
+            if(filtered.length === 0) {
+                listContainer.innerHTML = '<div class="text-center p-8 text-slate-400 text-sm">No active orders</div>';
+                return;
+            }
+
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const localTodayStr = `${year}-${month}-${day}`;
+
+            listContainer.innerHTML = filtered.map(order => {
+                const isActive = order.id === selectedOrderId;
+                const isToday = order.deliveryDate === localTodayStr;
+                const itemCount = order.items ? order.items.reduce((sum, i) => sum + i.qty, 0) : 0;
+                
+                let cardClasses = "group cursor-pointer p-4 rounded-xl border transition-all relative overflow-hidden active:scale-[0.98]";
+                
+                if (isActive) {
+                    cardClasses += " bg-white border-blue-500 shadow-md ring-1 ring-blue-500";
+                } else if (isToday) {
+                    cardClasses += " bg-amber-50/40 border-amber-300 shadow-sm";
+                } else {
+                    cardClasses += " bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm";
+                }
+
+                return `
+                <div onclick="selectOrder('${order.id}')" class="${cardClasses}">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 ${order.status === 'Pending' ? 'bg-yellow-400' : order.status === 'Processing' ? 'bg-blue-500' : order.status === 'Dispatched' ? 'bg-purple-500' : 'bg-slate-300'}"></div>
+                    <div class="pl-2">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-mono text-xs font-bold text-slate-500">#${order.id.slice(0,6)}</span>
+                            <div class="flex gap-1 items-center">
+                                ${isToday ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide bg-amber-100 text-amber-700 animate-pulse">TODAY</span>' : ''}
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
+                                    order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 
+                                    order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
+                                    order.status === 'Dispatched' ? 'bg-purple-100 text-purple-700' :
+                                    'bg-slate-100 text-slate-600'
+                                }">${order.status}</span>
+                            </div>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-sm mb-1 truncate">${order.businessName}</h4>
+                        
+                        <div class="text-xs mb-3 flex items-center gap-1">
+                            <span class="${isToday ? 'text-amber-700 bg-amber-100 border-amber-200' : 'text-blue-700 bg-blue-50 border-blue-100'} font-bold px-2 py-0.5 rounded border flex items-center gap-1">
+                                <i class="fa-solid fa-clock"></i> Due: ${displayDate(order.deliveryDate)} ${order.deliveryTime || ''}
+                            </span>
+                        </div>
+
+                        <div class="flex justify-between items-center border-t ${isToday ? 'border-amber-100' : 'border-slate-50'} pt-3 mt-1">
+                            <div class="text-xs font-medium text-slate-600">${itemCount} items</div>
+                            <div class="flex gap-2">
+                                ${order.status === 'Pending' ? `
+                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Processing')" class="px-3 py-1.5 bg-blue-600 active:bg-blue-800 text-white text-xs rounded-md font-medium shadow-sm transition-colors">Accept</button>
+                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Cancelled')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 active:bg-red-50 text-xs rounded-md font-medium transition-colors">Reject</button>
+                                ` : `
+                                    <span class="text-xs text-slate-400 font-medium italic">Details <i class="fa-solid fa-chevron-right ml-1 text-[10px]"></i></span>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        };
+
+        // New Mobile Nav Logic
+        window.backToOrderList = () => {
+            const listPanel = document.getElementById('order-list-panel');
+            const middlePanel = document.getElementById('middle-panel');
+            
+            // Only affects mobile
+            if(window.innerWidth < 768) {
+                listPanel.classList.remove('hidden');
+                middlePanel.classList.add('hidden');
+                selectedOrderId = null;
+                // re-render to remove selection style
+                renderOrderList();
+            }
+        };
+
+        window.selectOrder = (id) => {
+            const order = allOrders.find(o => o.id === id);
+            
+            if (!order || order.status === 'Delivered' || order.status === 'Cancelled') {
+                selectedOrderId = null;
+                renderOrderList();
+                document.getElementById('no-selection').classList.remove('hidden');
+                document.getElementById('order-detail-content').classList.add('hidden');
+                
+                // Mobile: stay on list
+                return;
+            }
+
+            selectedOrderId = id;
+            renderOrderList();
+            
+            // Mobile Toggle Logic
+            const listPanel = document.getElementById('order-list-panel');
+            const middlePanel = document.getElementById('middle-panel');
+            
+            if(window.innerWidth < 768) {
+                // Mobile: Hide List, Show Detail
+                listPanel.classList.add('hidden');
+                middlePanel.classList.remove('hidden');
+                // Ensure detail panel is visible
+                middlePanel.classList.add('flex');
+            }
+
+            document.getElementById('no-selection').classList.add('hidden');
+            document.getElementById('order-detail-content').classList.remove('hidden');
+
+            document.getElementById('detail-id').innerText = `Order #${order.id.slice(0,6)}`;
+            document.getElementById('detail-date').innerHTML = `${formatDate(order.createdAt?.toDate())}`;
+            document.getElementById('detail-customer').innerText = order.businessName;
+            document.getElementById('detail-phone').innerText = order.phoneNumber || 'N/A';
+            document.getElementById('detail-due-date').innerText = `${displayDate(order.deliveryDate)} ${order.deliveryTime || ''}`;
+            document.getElementById('detail-address').innerText = order.deliveryAddress || 'No address provided';
+            
+            const statusWrapper = document.getElementById('detail-status-wrapper');
+            if (order.status === 'Pending') {
+                statusWrapper.innerHTML = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">PENDING APPROVAL</span>`;
+            } else if (order.status === 'Cancelled') {
+                statusWrapper.innerHTML = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">REJECTED</span>`;
+            } else {
+                statusWrapper.innerHTML = `
+                    <select onchange="updateStatus('${order.id}', this.value)" class="px-3 py-1.5 rounded-lg text-xs font-bold border-0 ring-1 ring-inset outline-none cursor-pointer transition-all ${
+                        order.status === 'Processing' ? 'bg-blue-50 text-blue-700 ring-blue-200' :
+                        order.status === 'Dispatched' ? 'bg-purple-50 text-purple-700 ring-purple-200' :
+                        'bg-slate-50 text-slate-700 ring-slate-200'
+                    }">
+                        <option value="Processing" ${order.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                        <option value="Dispatched" ${order.status === 'Dispatched' ? 'selected' : ''}>Dispatched</option>
+                        <option value="Delivered">Mark Delivered</option>
+                    </select>
+                `;
+            }
+
+            const itemsList = document.getElementById('detail-items-list');
+            let totalQty = 0;
+            
+            if (order.items && order.items.length > 0) {
+                itemsList.innerHTML = order.items.map(item => {
+                    totalQty += item.qty;
+                    return `
+                        <tr class="group hover:bg-slate-50 transition-colors">
+                            <td class="p-3 md:p-4 pl-4 md:pl-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 text-sm md:text-base"><i class="fa-solid fa-bread-slice"></i></div>
+                                    <div><div class="font-medium text-slate-800 text-sm">${item.name}</div></div>
+                                </div>
+                            </td>
+                            <td class="p-3 md:p-4 text-center font-medium text-slate-700">
+                                <span class="text-base md:text-lg">${item.qty}</span>
+                            </td>
+                            <td class="p-3 md:p-4 text-center">
+                                <input type="checkbox" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer shadow-sm transition-transform transform active:scale-95">
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                itemsList.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">No items recorded</td></tr>';
+            }
+            
+            document.getElementById('detail-total-qty').innerText = totalQty;
+            document.getElementById('detail-unique-sku').innerText = order.items.length;
+        };
+
+        const renderSuppliersTable = () => {
+            const supplierMap = {};
+            allOrders.forEach(o => {
+                const name = o.businessName || 'Unknown';
+                if(!supplierMap[name]) supplierMap[name] = { count: 0, items: {}, last: null };
+                supplierMap[name].count++;
+                if(!supplierMap[name].last || o.createdAt > supplierMap[name].last) supplierMap[name].last = o.createdAt;
+                o.items?.forEach(i => supplierMap[name].items[i.name] = (supplierMap[name].items[i.name] || 0) + i.qty);
+            });
+
+            document.getElementById('suppliers-table-body').innerHTML = Object.entries(supplierMap).map(([name, data]) => {
+                const itemsSummary = Object.entries(data.items).slice(0,3).map(([n,q]) => `${n}(${q})`).join(', ') + (Object.keys(data.items).length > 3 ? '...' : '');
+                return `
+                    <tr onclick="viewPartnerHistory('${name.replace(/'/g, "\\'")}')" class="hover:bg-slate-50 border-b border-slate-50 cursor-pointer group">
+                        <td class="p-4 font-medium text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">${name}</td>
+                        <td class="p-4 text-center text-slate-600">${data.count}</td>
+                        <td class="p-4 text-slate-500 text-sm whitespace-nowrap">${data.last ? formatDate(data.last.toDate()) : '-'}</td>
+                        <td class="p-4 text-xs text-slate-500 truncate max-w-xs" title="${itemsSummary}">${itemsSummary}</td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        window.filterOrders = () => renderOrderList();
+
+        window.setTab = (tab) => {
+            // Hide all main views
+            ['orders', 'suppliers', 'insights', 'products'].forEach(t => {
+                document.getElementById(`view-${t}`)?.classList.add('hidden');
+                document.getElementById(`nav-${t}`)?.classList.remove('active', 'bg-white/10', 'text-white');
+                document.getElementById(`nav-${t}`)?.classList.add('text-blue-100');
+                // Mobile Nav
+                document.getElementById(`mob-nav-${t}`)?.classList.remove('active', 'text-blue-600');
+                document.getElementById(`mob-nav-${t}`)?.classList.add('text-slate-400');
+            });
+
+            // Show selected view
+            const view = document.getElementById(`view-${tab}`);
+            view.classList.remove('hidden');
+            
+            // Desktop active state
+            const activeBtn = document.getElementById(`nav-${tab}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('text-blue-100');
+                activeBtn.classList.add('active');
+            }
+
+            // Mobile active state
+            const activeMobBtn = document.getElementById(`mob-nav-${tab}`);
+            if(activeMobBtn) {
+                activeMobBtn.classList.remove('text-slate-400');
+                activeMobBtn.classList.add('active');
+            }
+            
+            // Logic reset for Orders on Mobile
+            if(tab === 'orders') {
+                if(window.innerWidth < 768) {
+                    document.getElementById('order-list-panel').classList.remove('hidden');
+                    document.getElementById('middle-panel').classList.add('hidden');
+                }
+            }
+
+            if(tab === 'suppliers') renderSuppliersTable();
+            if(tab === 'insights') calculateStats();
+            if(tab === 'products') renderProductsList();
+        };
+
+        window.updateStatus = async (id, status) => {
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status });
+                if (status === 'Processing') {
+                    playSound('success');
+                } else if (status === 'Cancelled') {
+                    playSound('error');
+                }
+                showToast(`Order ${status}`, status === 'Processing' ? 'success' : 'info');
+                // If on mobile, maybe go back to list
+                if(window.innerWidth < 768 && (status === 'Cancelled' || status === 'Delivered')) {
+                    backToOrderList();
+                }
+            } catch(e) {
+                console.error(e);
+                showToast("Failed to update", 'error');
+            }
+        };
+
+        const showToast = (msg, type='info') => {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            el.className = `toast-enter p-4 rounded-xl shadow-xl border-l-4 w-full md:w-auto bg-white flex items-center gap-3 ${type === 'success' ? 'border-green-500' : 'border-blue-500'}`;
+            el.innerHTML = `
+                <div class="${type === 'success' ? 'text-green-500' : 'text-blue-500'}"><i class="fa-solid fa-bell"></i></div>
+                <div><h4 class="font-bold text-sm text-slate-800">Notification</h4><p class="text-xs text-slate-500">${msg}</p></div>
+            `;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        };
+
+        window.triggerPrint = () => {
+            const { jsPDF } = window.jspdf;
+            if(!selectedOrderId) return alert("Select an order first");
+            
+            const order = allOrders.find(o => o.id === selectedOrderId);
+            const doc = new jsPDF({ format: [100, 150] });
+
+            doc.setFontSize(16);
+            doc.text("DELIVERY SLIP", 10, 15);
+            
+            doc.setFontSize(10);
+            doc.text(`Customer: ${order.businessName}`, 10, 25);
+            doc.text(`Date: ${formatDate(order.createdAt.toDate())}`, 10, 30);
+            doc.text(`Delivery: ${displayDate(order.deliveryDate)} ${order.deliveryTime || ''}`, 10, 35);
+            doc.text(`Address: ${order.deliveryAddress || ''}`, 10, 40, { maxWidth: 80 });
+
+            doc.autoTable({
+                startY: 50,
+                head: [['Qty', 'Item', 'Check']],
+                body: order.items.map(i => [i.qty, i.name, '[ ]']),
+                theme: 'plain',
+                styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 10 }, 2: { cellWidth: 15 } }
+            });
+
+            doc.save(`packing_slip_${order.id.slice(0,6)}.pdf`);
+        };
+        
+        window.triggerPackingSlip = window.triggerPrint;
+
+        window.triggerBakeSheet = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const activeItems = Object.values(globalProductDemand).filter(p => p.qty > 0).sort((a,b) => b.qty - a.qty);
+
+            doc.setFontSize(22);
+            doc.text("DAILY BAKE SHEET", 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 30, { align: 'center' });
+
+            doc.autoTable({
+                startY: 40,
+                head: [['Item Name', 'Total Qty Needed', 'Details']],
+                body: activeItems.map(p => [
+                    p.name, 
+                    p.qty, 
+                    p.schedule.map(s => `${s.qty} for ${s.business}`).join(', ')
+                ]),
+                theme: 'grid',
+                headStyles: { fillColor: [66, 135, 245], fontSize: 12 },
+                styles: { fontSize: 11, cellPadding: 3 }
+            });
+
+            doc.save('bake_sheet.pdf');
+        };
+
+        function calculateStats() {
+            const stats = {
+                total: allOrders.length,
+                clients: new Set(allOrders.map(o => o.businessName)).size,
+                pending: allOrders.filter(o => o.status === 'Pending').length
+            };
+            document.getElementById('stat-total').innerText = stats.total;
+            document.getElementById('stat-clients').innerText = stats.clients;
+            document.getElementById('stat-pending').innerText = stats.pending;
+
+            const demand = {};
+            allOrders.forEach(o => {
+                if(o.status !== 'Cancelled' && o.status !== 'Delivered' && o.items) {
+                    o.items.forEach(i => {
+                        if(!demand[i.productId]) demand[i.productId] = {
+                            id: i.productId, name: i.name, qty: 0, unit: i.unit, schedule: []
+                        };
+                        demand[i.productId].qty += i.qty;
+                        demand[i.productId].schedule.push({
+                            date: o.deliveryDate, qty: i.qty, business: o.businessName
+                        });
+                    });
+                }
+            });
+            
+            Object.values(demand).forEach(p => {
+                p.schedule.sort((a,b) => new Date(a.date) - new Date(b.date));
+            });
+
+            globalProductDemand = demand;
+            const productDemandList = Object.values(demand).sort((a,b) => b.qty - a.qty);
+            
+            const demandBody = document.getElementById('demand-table');
+            if(productDemandList.length === 0) demandBody.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-slate-400">No active demand</td></tr>';
+            else {
+                demandBody.innerHTML = productDemandList.map(p => `
+                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors" onclick="showProductSchedule('${p.id}')">
+                        <td class="p-4 text-slate-700 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-slate-300"></i> ${p.name}</td>
+                        <td class="p-4 text-right"><span class="font-mono font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">${p.qty} ${p.unit || ''}</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // --- AUTH FLOW ---
+        document.getElementById('admin-login-btn').addEventListener('click', async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch(e) {
+                document.getElementById('auth-error-msg').innerText = e.message;
+                document.getElementById('auth-error-msg').classList.remove('hidden');
+            }
+        });
+        document.getElementById('admin-logout').addEventListener('click', () => signOut(auth));
+
+        // --- INIT & LISTENERS ---
+        onAuthStateChanged(auth, (user) => {
+            if(user) {
+                document.getElementById('admin-auth').classList.add('hidden');
+                document.getElementById('admin-app').classList.remove('hidden');
+                
+                // Fetch Products
+                const prodQ = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+                onSnapshot(prodQ, (snap) => {
+                    allProducts = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    renderProductsList();
+                });
+
+                // Fetch Orders
+                const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+                
+                if (unsubscribeOrders) unsubscribeOrders();
+                
+                isFirstLoad = true;
+                
+                unsubscribeOrders = onSnapshot(q, (snapshot) => {
+                    allOrders = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    if (!isFirstLoad) {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") queueNewOrderPopup(change.doc.data(), change.doc.id);
+                        });
+                    }
+                    renderOrderList();
+                    if(selectedOrderId && allOrders.find(o => o.id === selectedOrderId)) selectOrder(selectedOrderId);
+                    isFirstLoad = false;
+                });
+            } else {
+                document.getElementById('admin-auth').classList.remove('hidden');
+                document.getElementById('admin-app').classList.add('hidden');
+            }
+        });
+
+    </script>
+</body>
+</html>
