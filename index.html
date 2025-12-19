@@ -4,7 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPK Admin Portal</title>
+    
+    <!-- PWA Configuration -->
     <link rel="icon" href="logo2.png" type="image/x-icon" />
+    <meta name="theme-color" content="#1d4ed8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TPK Admin">
+    <link rel="apple-touch-icon" href="logo2.png">
+    
+    <!-- Inline Manifest for Single-File PWA -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"TPK Admin Portal","short_name":"TPK Admin","start_url":".","display":"standalone","background_color":"#f1f5f9","theme_color":"#1d4ed8","orientation":"portrait","icons":[{"src":"logo2.png","sizes":"192x192","type":"image/png"},{"src":"logo2.png","sizes":"512x512","type":"image/png"}]}'>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PDF Libs -->
@@ -17,6 +28,9 @@
                 extend: {
                     screens: {
                         'xs': '375px',
+                    },
+                    padding: {
+                        'safe-bottom': 'env(safe-area-inset-bottom)',
                     }
                 }
             }
@@ -45,13 +59,8 @@
         /* Popup Animation */
         .popup-scale { animation: popupScale 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes popupScale { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-        /* Mobile View Transitions */
-        .slide-left { animation: slideLeft 0.2s ease-out forwards; }
-        @keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
 </head>
-<!-- Use 100dvh for dynamic viewport height on mobile browsers -->
 <body class="bg-slate-100 font-sans text-slate-900 h-[100dvh] overflow-hidden flex flex-col">
 
     <!-- Notification Container (Toasts) -->
@@ -195,7 +204,7 @@
                             <i class="fa-regular fa-clock"></i> <span id="popup-time">Just now</span>
                         </p>
                         <p class="text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                            <i class="fa-solid fa-truck-fast"></i> Due: <span id="popup-delivery">...</span>
+                            <i class="fa-solid fa-truck-fast"></i> Devivery: <span id="popup-delivery">...</span>
                         </p>
                     </div>
                 </div>
@@ -223,11 +232,33 @@
         </div>
     </div>
 
+    <!-- MESSAGING CONFIRMATION MODAL (NEW) -->
+    <div id="msg-modal" class="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm popup-scale overflow-hidden">
+            <div class="bg-green-600 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold flex items-center gap-2"><i class="fa-brands fa-whatsapp text-xl"></i> Send Confirmation</h3>
+                <button onclick="closeMsgModal()" class="hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5">
+                <p class="text-sm text-slate-600 mb-4">Send automated status update to <span id="msg-phone-display" class="font-bold text-slate-800"></span>?</p>
+                <div class="bg-slate-50 p-3 rounded-lg text-xs text-slate-600 font-mono mb-4 border border-slate-200 max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner" id="msg-preview">
+                    <!-- Message Preview -->
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="closeMsgModal()" class="py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">Skip</button>
+                    <button id="btn-send-wa" class="py-3 rounded-xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <i class="fa-brands fa-whatsapp"></i> Send Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- AUTH SCREEN -->
     <div id="admin-auth" class="fixed inset-0 z-50 bg-white-900 flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-white">
             <div class="bg-white-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-900/100">
-                <img src="logo2.png" alt="Icon" width="30" height="30" class="brightness-0 invert">
+                <img src="logo2.png" alt="Cake Icon" width="30" height="30">
             </div>
             <h1 class="text-2xl font-bold text-slate-800">TPK Admin Portal</h1>
             <p class="text-slate-400 mb-8 text-sm">We Follow Perfection In Work</p>
@@ -252,7 +283,8 @@
                     <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-blue-700 text-lg font-bold shadow-sm">
                         <img src="logo2.png" alt="Cake" width="30" height="30">
                     </div>
-                    <span class="font-bold text-xl tracking-wide hidden xs:inline">TPK Admin</span>
+                    <!-- FIXED: Removed hidden class here -->
+                    <span class="font-bold text-xl tracking-wide">TPK Admin</span>
                 </div>
 
                 <!-- Desktop Main Navigation -->
@@ -286,35 +318,47 @@
         </header>
 
         <!-- MAIN CONTENT AREA -->
-        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 relative">
+        <!-- Added padding-bottom for mobile nav -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 relative pb-16 md:pb-0">
             
-            <!-- VIEW: ORDERS (2-Column Layout) -->
-            <div id="view-orders" class="flex-1 flex overflow-hidden">
+            <!-- VIEW: ORDERS -->
+            <div id="view-orders" class="flex-1 flex overflow-hidden relative">
                 
-                <!-- COL 1: ORDER LIST -->
-                <div class="w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg">
+                <!-- COL 1: ORDER LIST (Full width on mobile, sidebar on desktop) -->
+                <!-- FIXED: Changed z-index logic to ensure it's clickable on mobile -->
+                <div id="order-list-panel" class="w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex flex-col z-30 md:z-10 shadow-lg absolute inset-0 md:relative">
                     <!-- Search Header -->
-                    <div class="p-4 border-b border-slate-100 bg-white sticky top-0 z-20 space-y-3">
-                        <div class="flex justify-between items-center">
-                            <h2 class="text-lg font-bold text-slate-800">Order Queue</h2>
-                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-mono font-bold" id="order-count-badge">0</span>
+                    <div class="p-3 border-b border-slate-100 bg-white sticky top-0 z-20">
+                        <h2 class="text-base font-bold text-slate-800 mb-2">Order Queue</h2>
+                        <!-- UPDATED: Stats Boxes -->
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div onclick="setQueueFilter('all')" id="filter-btn-all" class="bg-blue-50 border border-blue-200 p-1.5 rounded-lg cursor-pointer hover:bg-blue-100 transition-all text-center group ring-2 ring-blue-500 shadow-sm relative">
+                                <p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider group-hover:text-blue-700">Active Order</p>
+                                <p class="text-base font-bold text-blue-800 leading-none mt-0.5 group-hover:scale-110 transition-transform" id="queue-stat-active">0</p>
+                            </div>
+                            <div onclick="setQueueFilter('pending')" id="filter-btn-pending" class="bg-yellow-50 border border-yellow-200 p-1.5 rounded-lg cursor-pointer hover:bg-yellow-100 transition-all text-center group opacity-80 hover:opacity-100">
+                                <p class="text-[10px] text-yellow-600 font-bold uppercase tracking-wider group-hover:text-yellow-700">Pending to Accept</p>
+                                <p class="text-base font-bold text-yellow-800 leading-none mt-0.5 group-hover:scale-110 transition-transform" id="queue-stat-pending">0</p>
+                            </div>
                         </div>
                         
                         <div class="relative">
-                            <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
-                            <input type="text" id="order-search" onkeyup="filterOrders()" placeholder="Search partner or ID..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border-0 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-slate-400">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="order-search" onkeyup="filterOrders()" placeholder="Search partner or ID..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border-0 rounded-md text-xs focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-slate-400">
                         </div>
                     </div>
                     
                     <!-- Scrollable List -->
-                    <div id="order-list-container" class="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50">
+                    <div id="order-list-container" class="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 md:space-y-3 bg-slate-50 pb-20 md:pb-3">
                         <!-- Orders injected via JS -->
                     </div>
                 </div>
 
-                <!-- COL 2: ORDER DETAILS (Middle - Now takes remaining space) -->
-                <div id="middle-panel" class="flex-1 flex flex-col overflow-y-auto bg-slate-50/50 relative hidden md:flex">
-                    <!-- Placeholder if no order selected -->
+                <!-- COL 2: ORDER DETAILS (Hidden on mobile initially) -->
+                <!-- FIXED: Ensure explicit hidden state and correct z-index when shown -->
+                <div id="middle-panel" class="absolute inset-0 md:static w-full h-full bg-slate-50/50 flex flex-col z-40 md:z-auto hidden md:flex">
+                    
+                    <!-- Placeholder -->
                     <div id="no-selection" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
                         <i class="fa-solid fa-basket-shopping text-6xl mb-4 opacity-20"></i>
                         <p>Select an order to view details</p>
@@ -325,7 +369,7 @@
                         
                         <!-- Detail Toolbar (Mobile Back Button) -->
                         <div class="bg-white border-b border-slate-200 p-3 md:hidden flex items-center gap-3 shrink-0 shadow-sm z-30">
-                            <button onclick="backToOrderList()" class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full text-slate-600">
+                            <button onclick="backToOrderList()" class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full text-slate-600 active:bg-slate-200">
                                 <i class="fa-solid fa-arrow-left"></i>
                             </button>
                             <span class="font-bold text-slate-800">Order Details</span>
@@ -366,7 +410,7 @@
 
                                         <div class="mt-3 inline-flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 w-full sm:w-auto">
                                             <i class="fa-solid fa-truck-fast text-blue-600"></i> 
-                                            <span class="text-sm text-blue-800 font-bold">Due: <span id="detail-due-date">...</span></span>
+                                            <span class="text-sm text-blue-800 font-bold">Delivery: <span id="detail-due-date">...</span></span>
                                         </div>
                                     </div>
                                     
@@ -490,71 +534,51 @@
             </div>
 
             <!-- VIEW: ANALYTICS -->
-            <div id="view-insights" class="hidden flex-1 overflow-y-auto p-4 md:p-8 fade-in pb-20 md:pb-8">
-                <div class="max-w-6xl mx-auto space-y-6">
-                    <!-- Top AI Controls -->
-                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
-                        <h2 class="text-2xl font-bold text-slate-800">Sales Analytics</h2>
-                        <button onclick="triggerBakeSheet()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors active:scale-95">
-                            <i class="fa-solid fa-print"></i> <span class="hidden xs:inline">Bake Sheet</span>
+            <div id="view-insights" class="hidden flex-1 overflow-y-auto bg-slate-50/50 p-4 md:p-8 fade-in pb-20 md:pb-8">
+                <div class="max-w-5xl mx-auto space-y-8">
+                    
+                    <!-- Header & Actions -->
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">Kitchen Dashboard</h2>
+                            <p class="text-slate-500 text-sm mt-1">Daily overview for production staff</p>
+                        </div>
+                        <button onclick="triggerBakeSheet()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-print text-lg"></i> <span>Print Daily Bake Sheet</span>
                         </button>
                     </div>
 
-                    <div id="ai-panel" class="hidden bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-6 rounded-2xl shadow-lg relative">
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="font-bold flex items-center gap-2 text-lg">
-                                <i class="fa-solid fa-sparkles text-yellow-300"></i> Smart Summary
-                            </h3>
-                            <button onclick="document.getElementById('ai-panel').classList.add('hidden')" class="text-white/70 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                    <!-- Date-wise Schedule (Moved to Top) -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100">
+                            <h3 class="font-bold text-lg text-slate-800">Daily Production Schedule</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Breakdown by delivery date</p>
                         </div>
-                        <div id="ai-text" class="prose prose-invert max-w-none text-blue-50 text-sm leading-relaxed"></div>
-                    </div>
-                    
-                    <!-- KPI Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Orders Today</p>
-                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-total">0</h3>
-                                </div>
-                                <div class="p-3 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-regular fa-file-lines text-xl"></i></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Partners</p>
-                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-clients">0</h3>
-                                </div>
-                                <div class="p-3 bg-purple-50 text-purple-600 rounded-lg"><i class="fa-regular fa-building text-xl"></i></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Pending Review</p>
-                                    <h3 class="text-3xl font-bold text-slate-900 mt-1" id="stat-pending">0</h3>
-                                </div>
-                                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-clock text-xl"></i></div>
+                        <div class="p-6 bg-slate-50/50">
+                            <div id="date-schedule-visuals" class="space-y-6">
+                                <!-- Date Cards injected here -->
                             </div>
                         </div>
                     </div>
 
-                    <!-- Demand Table -->
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-                        <div class="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center bg-white">
-                            <h3 class="font-bold text-slate-800">Production Demand</h3>
+                    <!-- Visual Demand Chart -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-800">Production Requirements</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Visual breakdown of what needs baking</p>
+                            </div>
+                            <div class="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                                Live Data
+                            </div>
                         </div>
-                        <div class="flex-1 overflow-auto max-h-[400px]">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-slate-50 text-slate-500 sticky top-0 z-10">
-                                    <tr><th class="p-4 font-semibold">Item</th><th class="p-4 font-semibold text-right">To Bake</th></tr>
-                                </thead>
-                                <tbody id="demand-table" class="divide-y divide-slate-5"></tbody>
-                            </table>
+                        <div class="p-6 bg-slate-50/50">
+                            <div id="demand-visuals" class="space-y-4">
+                                <!-- Visual Bars injected here -->
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -612,6 +636,7 @@
         let isFirstLoad = true;
         let globalProductDemand = {}; 
         let unsubscribeOrders = null;
+        let queueFilterMode = 'all'; // 'all' or 'pending'
         
         let popupQueue = [];
         let isPopupOpen = false;
@@ -810,7 +835,10 @@
             
             if(seedBtn) seedBtn.classList.add('hidden');
 
-            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(searchVal));
+            // SORTED ALPHABETICALLY HERE
+            const filtered = allProducts
+                .filter(p => p.name.toLowerCase().includes(searchVal))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
             if (filtered.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">No matching items found.</td></tr>';
@@ -920,14 +948,48 @@
             }
         };
 
-        // --- ORDER LIST RENDERING ---
+        // --- ORDER LIST RENDERING & FILTERING ---
+        window.setQueueFilter = (mode) => {
+            queueFilterMode = mode;
+            // Update UI State
+            const btnAll = document.getElementById('filter-btn-all');
+            const btnPending = document.getElementById('filter-btn-pending');
+
+            if (mode === 'all') {
+                btnAll.classList.add('ring-2', 'ring-blue-500', 'shadow-sm', 'opacity-100');
+                btnAll.classList.remove('opacity-80');
+                
+                btnPending.classList.remove('ring-2', 'ring-yellow-500', 'shadow-sm', 'opacity-100');
+                btnPending.classList.add('opacity-80');
+            } else {
+                btnPending.classList.add('ring-2', 'ring-yellow-500', 'shadow-sm', 'opacity-100');
+                btnPending.classList.remove('opacity-80');
+
+                btnAll.classList.remove('ring-2', 'ring-blue-500', 'shadow-sm', 'opacity-100');
+                btnAll.classList.add('opacity-80');
+            }
+            renderOrderList();
+        };
+
         window.renderOrderList = () => {
             const listContainer = document.getElementById('order-list-container');
             const searchVal = document.getElementById('order-search').value.toLowerCase();
             
-            const filtered = allOrders.filter(o => 
-                o.status !== 'Delivered' && 
-                o.status !== 'Cancelled' &&
+            // 1. Calculate Statistics (Always based on full active set)
+            const activeOrders = allOrders.filter(o => !['Delivered', 'Cancelled'].includes(o.status));
+            const pendingOrders = allOrders.filter(o => o.status === 'Pending');
+            
+            document.getElementById('queue-stat-active').innerText = activeOrders.length;
+            document.getElementById('queue-stat-pending').innerText = pendingOrders.length;
+
+            // 2. Filter List based on Mode + Search
+            let filtered = activeOrders; // Base set is always non-delivered/cancelled
+            
+            if (queueFilterMode === 'pending') {
+                filtered = filtered.filter(o => o.status === 'Pending');
+            }
+
+            filtered = filtered.filter(o => 
                 ((o.businessName || '').toLowerCase().includes(searchVal) || 
                 o.id.toLowerCase().includes(searchVal))
             ).sort((a,b) => {
@@ -936,10 +998,8 @@
                 return dateA - dateB;
             });
 
-            document.getElementById('order-count-badge').innerText = filtered.length;
-
             if(filtered.length === 0) {
-                listContainer.innerHTML = '<div class="text-center p-8 text-slate-400 text-sm">No active orders</div>';
+                listContainer.innerHTML = '<div class="text-center p-8 text-slate-400 text-sm">No orders match filter</div>';
                 return;
             }
 
@@ -954,7 +1014,7 @@
                 const isToday = order.deliveryDate === localTodayStr;
                 const itemCount = order.items ? order.items.reduce((sum, i) => sum + i.qty, 0) : 0;
                 
-                let cardClasses = "group cursor-pointer p-4 rounded-xl border transition-all relative overflow-hidden active:scale-[0.98]";
+                let cardClasses = "group cursor-pointer p-4 rounded-xl border transition-all relative overflow-hidden active:scale-[0.98] touch-manipulation select-none";
                 
                 if (isActive) {
                     cardClasses += " bg-white border-blue-500 shadow-md ring-1 ring-blue-500";
@@ -984,7 +1044,7 @@
                         
                         <div class="text-xs mb-3 flex items-center gap-1">
                             <span class="${isToday ? 'text-amber-700 bg-amber-100 border-amber-200' : 'text-blue-700 bg-blue-50 border-blue-100'} font-bold px-2 py-0.5 rounded border flex items-center gap-1">
-                                <i class="fa-solid fa-clock"></i> Due: ${displayDate(order.deliveryDate)} ${order.deliveryTime || ''}
+                                <i class="fa-solid fa-clock"></i> Delivery: ${displayDate(order.deliveryDate)} ${order.deliveryTime || ''}
                             </span>
                         </div>
 
@@ -992,8 +1052,8 @@
                             <div class="text-xs font-medium text-slate-600">${itemCount} items</div>
                             <div class="flex gap-2">
                                 ${order.status === 'Pending' ? `
-                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Processing')" class="px-3 py-1.5 bg-blue-600 active:bg-blue-800 text-white text-xs rounded-md font-medium shadow-sm transition-colors">Accept</button>
-                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Cancelled')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 active:bg-red-50 text-xs rounded-md font-medium transition-colors">Reject</button>
+                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Processing')" class="px-3 py-1.5 bg-blue-600 active:bg-blue-800 text-white text-xs rounded-md font-medium shadow-sm transition-colors cursor-pointer z-10 relative">Accept</button>
+                                    <button onclick="event.stopPropagation(); updateStatus('${order.id}', 'Cancelled')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 active:bg-red-50 text-xs rounded-md font-medium transition-colors cursor-pointer z-10 relative">Reject</button>
                                 ` : `
                                     <span class="text-xs text-slate-400 font-medium italic">Details <i class="fa-solid fa-chevron-right ml-1 text-[10px]"></i></span>
                                 `}
@@ -1005,22 +1065,42 @@
             }).join('');
         };
 
-        // New Mobile Nav Logic
-        window.backToOrderList = () => {
+        // NEW: Mobile UI Reset Helper
+        const closeMobileDetailsUI = () => {
             const listPanel = document.getElementById('order-list-panel');
             const middlePanel = document.getElementById('middle-panel');
             
-            // Only affects mobile
             if(window.innerWidth < 768) {
                 listPanel.classList.remove('hidden');
                 middlePanel.classList.add('hidden');
+                middlePanel.classList.remove('flex');
                 selectedOrderId = null;
-                // re-render to remove selection style
                 renderOrderList();
             }
         };
 
-        window.selectOrder = (id) => {
+        // NEW: History API Integration for Mobile Back Button
+        window.addEventListener('popstate', (event) => {
+            if(window.innerWidth < 768) {
+                if (event.state && event.state.orderId) {
+                    selectOrder(event.state.orderId, false); // false = don't push state again
+                } else {
+                    closeMobileDetailsUI();
+                }
+            }
+        });
+
+        // MODIFIED: backToOrderList now uses history
+        window.backToOrderList = () => {
+            if (history.state && history.state.orderId) {
+                history.back();
+            } else {
+                closeMobileDetailsUI();
+            }
+        };
+
+        // MODIFIED: selectOrder pushes history state
+        window.selectOrder = (id, pushState = true) => {
             const order = allOrders.find(o => o.id === id);
             
             if (!order || order.status === 'Delivered' || order.status === 'Cancelled') {
@@ -1028,24 +1108,24 @@
                 renderOrderList();
                 document.getElementById('no-selection').classList.remove('hidden');
                 document.getElementById('order-detail-content').classList.add('hidden');
-                
-                // Mobile: stay on list
                 return;
             }
 
             selectedOrderId = id;
             renderOrderList();
             
-            // Mobile Toggle Logic
             const listPanel = document.getElementById('order-list-panel');
             const middlePanel = document.getElementById('middle-panel');
             
             if(window.innerWidth < 768) {
-                // Mobile: Hide List, Show Detail
                 listPanel.classList.add('hidden');
                 middlePanel.classList.remove('hidden');
-                // Ensure detail panel is visible
                 middlePanel.classList.add('flex');
+                
+                // Push state to enable browser back button
+                if (pushState) {
+                    history.pushState({ orderId: id }, '', `#order-${id}`);
+                }
             }
 
             document.getElementById('no-selection').classList.add('hidden');
@@ -1175,15 +1255,78 @@
             if(tab === 'products') renderProductsList();
         };
 
+        // --- MSG CONFIRMATION SYSTEM ---
+        window.openConfirmationModal = (order) => {
+            const modal = document.getElementById('msg-modal');
+            const phone = order.phoneNumber || 'N/A';
+            const count = order.items ? order.items.reduce((s,i) => s + i.qty, 0) : 0;
+            const itemsShort = order.items ? order.items.map(i => `${i.qty}x ${i.name}`).join('\n') : '';
+
+            const msgText = `*CONFIRMED: TPK Order #${order.id.slice(0,6)}* ✅\n\n` + 
+                            `Hi ${order.businessName},\n` + 
+                            `We have received your order for *${displayDate(order.deliveryDate)}*.\n\n` + 
+                            `*Items (${count}):*\n${itemsShort}\n\n` + 
+                            `We'll notify you when it's dispatched. Thanks!\n\n` +
+                            `For any queries, reach out to us on \n-Line 1: +91 883002 4550,\n-Line 2: +91 96653 84354\n\n`+
+                            `Thanks for your business and support 🤝\n` +
+                            `Team The Pastry Kitchen`;
+
+            // Visual formatting for the user to see
+            let displayPhone = phone.replace(/[^0-9]/g, '');
+            if (displayPhone.length === 10) displayPhone = '+91 ' + displayPhone;
+            else if (displayPhone.length === 12 && displayPhone.startsWith('91')) displayPhone = '+' + displayPhone;
+            
+            document.getElementById('msg-phone-display').innerText = displayPhone || phone;
+            document.getElementById('msg-preview').innerText = msgText;
+
+            // Setup Send Button
+            const sendBtn = document.getElementById('btn-send-wa');
+            sendBtn.onclick = () => {
+                if(phone && phone.length > 5) {
+                    // 1. Clean the number (remove spaces, dashes, + signs)
+                    let safePhone = phone.replace(/[^0-9]/g, '');
+                    
+                    // 2. Intelligent Prefix Logic for India
+                    if (safePhone.length === 10) {
+                        // Case: "9876543210" -> "919876543210"
+                        safePhone = '91' + safePhone;
+                    } else if (safePhone.length === 11 && safePhone.startsWith('0')) {
+                        // Case: "09876543210" -> "919876543210"
+                        safePhone = '91' + safePhone.substring(1);
+                    }
+                    // Case: "919876543210" (Already correct, 12 digits) -> leave as is
+
+                    const url = `https://wa.me/${safePhone}?text=${encodeURIComponent(msgText)}`;
+                    window.open(url, '_blank');
+                    showToast('Opening WhatsApp...', 'success');
+                } else {
+                    alert("Invalid phone number provided in order.");
+                }
+                closeMsgModal();
+            };
+
+            modal.classList.remove('hidden');
+        };
+
+        window.closeMsgModal = () => {
+            document.getElementById('msg-modal').classList.add('hidden');
+        };
+
         window.updateStatus = async (id, status) => {
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status });
+                
                 if (status === 'Processing') {
                     playSound('success');
+                    // TRIGGER CONFIRMATION MSG
+                    const order = allOrders.find(o => o.id === id);
+                    if(order) openConfirmationModal(order);
                 } else if (status === 'Cancelled') {
                     playSound('error');
                 }
+                
                 showToast(`Order ${status}`, status === 'Processing' ? 'success' : 'info');
+                
                 // If on mobile, maybe go back to list
                 if(window.innerWidth < 768 && (status === 'Cancelled' || status === 'Delivered')) {
                     backToOrderList();
@@ -1253,7 +1396,7 @@
                 body: activeItems.map(p => [
                     p.name, 
                     p.qty, 
-                    p.schedule.map(s => `${s.qty} for ${s.business}`).join(', ')
+                    p.schedule.map(s => `${s.qty} for ${s.business} (${displayDate(s.date)})`).join(', ')
                 ]),
                 theme: 'grid',
                 headStyles: { fillColor: [66, 135, 245], fontSize: 12 },
@@ -1267,11 +1410,9 @@
             const stats = {
                 total: allOrders.length,
                 clients: new Set(allOrders.map(o => o.businessName)).size,
-                pending: allOrders.filter(o => o.status === 'Pending').length
+                pending: allOrders.filter(o => o.status === 'Pending').length,
+                totalItems: 0 // New stat
             };
-            document.getElementById('stat-total').innerText = stats.total;
-            document.getElementById('stat-clients').innerText = stats.clients;
-            document.getElementById('stat-pending').innerText = stats.pending;
 
             const demand = {};
             allOrders.forEach(o => {
@@ -1281,6 +1422,7 @@
                             id: i.productId, name: i.name, qty: 0, unit: i.unit, schedule: []
                         };
                         demand[i.productId].qty += i.qty;
+                        stats.totalItems += i.qty; // Accumulate total
                         demand[i.productId].schedule.push({
                             date: o.deliveryDate, qty: i.qty, business: o.businessName
                         });
@@ -1288,22 +1430,124 @@
                 }
             });
             
+            // Sort schedules by date
             Object.values(demand).forEach(p => {
                 p.schedule.sort((a,b) => new Date(a.date) - new Date(b.date));
             });
 
             globalProductDemand = demand;
-            const productDemandList = Object.values(demand).sort((a,b) => b.qty - a.qty);
+
+            // Update KPIs
+            const statTotalEl = document.getElementById('stat-total');
+            if (statTotalEl) statTotalEl.innerText = stats.total;
             
-            const demandBody = document.getElementById('demand-table');
-            if(productDemandList.length === 0) demandBody.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-slate-400">No active demand</td></tr>';
-            else {
-                demandBody.innerHTML = productDemandList.map(p => `
-                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors" onclick="showProductSchedule('${p.id}')">
-                        <td class="p-4 text-slate-700 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-slate-300"></i> ${p.name}</td>
-                        <td class="p-4 text-right"><span class="font-mono font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">${p.qty} ${p.unit || ''}</span></td>
-                    </tr>
-                `).join('');
+            const statPendingEl = document.getElementById('stat-pending');
+            if (statPendingEl) statPendingEl.innerText = stats.pending;
+            
+            const statItemsEl = document.getElementById('stat-items');
+            if(statItemsEl) statItemsEl.innerText = stats.totalItems;
+
+
+            // Render Visual Demand Chart
+            const productDemandList = Object.values(demand).sort((a,b) => b.qty - a.qty);
+            const container = document.getElementById('demand-visuals');
+            
+            if (container) {
+                if(productDemandList.length === 0) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <i class="fa-solid fa-mug-hot text-4xl mb-3 opacity-20"></i>
+                            <p>No active baking requirements.</p>
+                        </div>
+                    `;
+                } else {
+                    const maxQty = productDemandList[0].qty; // Highest value for 100% width
+
+                    container.innerHTML = productDemandList.map((p, index) => {
+                        const percentage = Math.max((p.qty / maxQty) * 100, 5); // Min 5% width for visibility
+                        const isTop = index < 3;
+                        const barColor = isTop ? 'bg-indigo-500' : 'bg-slate-400';
+                        const opacity = isTop ? 'opacity-100' : 'opacity-60';
+
+                        return `
+                            <div onclick="showProductSchedule('${p.id}')" class="group cursor-pointer">
+                                <div class="flex justify-between items-end mb-1">
+                                    <span class="font-bold text-slate-700 text-sm group-hover:text-indigo-600 transition-colors">${p.name}</span>
+                                    <span class="font-bold text-slate-800 text-sm">${p.qty} <span class="text-slate-400 text-xs font-normal">${p.unit || ''}</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                    <div class="${barColor} h-full rounded-full ${opacity} transition-all duration-500 ease-out group-hover:opacity-100" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // --- Date-wise Logic ---
+            const dateGroups = {};
+            Object.values(demand).forEach(item => {
+                item.schedule.forEach(sched => {
+                    const dKey = sched.date || 'No Date';
+                    if (!dateGroups[dKey]) {
+                        dateGroups[dKey] = { total: 0, items: {} };
+                    }
+                    if (!dateGroups[dKey].items[item.name]) {
+                        dateGroups[dKey].items[item.name] = 0;
+                    }
+                    dateGroups[dKey].items[item.name] += sched.qty;
+                    dateGroups[dKey].total += sched.qty;
+                });
+            });
+
+            const sortedDates = Object.keys(dateGroups).sort((a,b) => {
+                if(a === 'No Date') return 1;
+                if(b === 'No Date') return -1;
+                return new Date(a) - new Date(b);
+            });
+            
+            const dateContainer = document.getElementById('date-schedule-visuals');
+            if (dateContainer) {
+                if (sortedDates.length === 0) {
+                     dateContainer.innerHTML = '<div class="text-center text-slate-400 py-4">No scheduled production</div>';
+                } else {
+                    dateContainer.innerHTML = sortedDates.map(date => {
+                        const dayData = dateGroups[date];
+                        const sortedItems = Object.entries(dayData.items).sort((a,b) => b[1] - a[1]); // Sort items by qty desc
+                        
+                        // Format Date
+                        let dateDisplay = date;
+                        let isToday = false;
+                        if(date !== 'No Date') {
+                            dateDisplay = displayDate(date);
+                            const d = new Date(date);
+                            const now = new Date();
+                            if(d.toDateString() === now.toDateString()) isToday = true;
+                        }
+                        
+                        return `
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                <div class="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-regular fa-calendar text-slate-400"></i>
+                                        <span class="font-bold text-slate-700">${dateDisplay}</span>
+                                        ${isToday ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">Today</span>' : ''}
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded shadow-sm">${dayData.total} items</span>
+                                </div>
+                                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+                                    ${sortedItems.map(([name, qty]) => `
+                                        <div class="flex items-center gap-3 text-sm border-b border-slate-50 pb-1 last:border-0">
+                                            <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                                            <span class="text-slate-600 truncate max-w-[80%]">${name}</span>
+                                            <span class="font-bold text-slate-800 bg-slate-100 px-2 rounded-md text-xs ml-auto">${qty}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
             }
         }
 
@@ -1355,10 +1599,16 @@
             }
         });
 
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // This registers the sw.js file if it exists in the same directory
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker: Registered (Scope: ' + reg.scope + ')'))
+                    .catch(err => console.log('Service Worker: Register failed (sw.js likely missing)'));
+            });
+        }
+
     </script>
 </body>
-
 </html>
-
-
-
