@@ -305,6 +305,11 @@
 
                 <!-- User & Actions -->
                 <div class="flex items-center gap-3 md:gap-4">
+                    <!-- PWA Install Button -->
+                    <button id="pwa-install-btn" class="hidden bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Install App</span>
+                    </button>
+
                     <div class="text-right hidden sm:block">
                         <div class="text-sm font-semibold text-white">Welcome</div>
                         <div class="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Admin</div>
@@ -1599,13 +1604,40 @@
             }
         });
 
-        // --- PWA SERVICE WORKER REGISTRATION ---
+        // --- PWA SERVICE WORKER REGISTRATION & INSTALLATION ---
+        let deferredPrompt;
+        const installBtn = document.getElementById('pwa-install-btn');
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // This registers the sw.js file if it exists in the same directory
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => console.log('Service Worker: Registered (Scope: ' + reg.scope + ')'))
                     .catch(err => console.log('Service Worker: Register failed (sw.js likely missing)'));
+            });
+        }
+
+        // Capture the event to allow manual install
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if(installBtn) installBtn.classList.remove('hidden');
+        });
+
+        if(installBtn) {
+            installBtn.addEventListener('click', (e) => {
+                installBtn.classList.add('hidden');
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('User accepted the A2HS prompt');
+                        } else {
+                            console.log('User dismissed the A2HS prompt');
+                        }
+                        deferredPrompt = null;
+                    });
+                }
             });
         }
 
